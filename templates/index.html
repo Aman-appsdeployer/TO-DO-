@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+
+        header {
+            background-color: #343a40;
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+        }
+
+        .container {
+            max-width: 700px;
+        }
+
+        #addForm {
+            margin-bottom: 20px;
+        }
+
+        #item {
+            height: 40px;
+            font-size: 1.1rem;
+        }
+
+        #submit {
+            height: 40px;
+            font-size: 1.1rem;
+        }
+
+        ul.list-group {
+            margin-top: 20px;
+        }
+
+        ul.list-group li {
+            font-size: 1.2rem;
+            padding: 15px;
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-danger {
+            margin-left: 10px;
+        }
+
+        .btn-sm {
+            font-size: 0.9rem;
+            padding: 5px 10px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .container {
+                padding: 0 20px;
+            }
+
+            #item {
+                font-size: 1rem;
+            }
+
+            #submit {
+                font-size: 1rem;
+            }
+
+            ul.list-group li {
+                font-size: 1.1rem;
+                padding: 10px;
+            }
+        }
+
+        /* Success message styling */
+        #lblsuccess {
+            font-size: 1.1rem;
+            margin-top: 10px;
+            display: block;
+            text-align: center;
+        }
+
+        /* Make buttons look modern */
+        .btn {
+            border-radius: 25px;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <h1>To-Do List</h1>
+        </div>
+    </header>
+
+    <div class="container">
+        <h2 class="text-center mb-4">Add New Task</h2>
+        <label id="lblsuccess" class="text-success" style="display: none;">Task added successfully!</label>
+        <form id="addForm">
+            <div class="form-group row">
+                <div class="col-9">
+                    <input type="text" class="form-control" id="item" placeholder="Enter new task...">
+                </div>
+                <div class="col-3">
+                    <input type="submit" class="btn btn-dark btn-block" id="submit" value="Submit">
+                </div>
+            </div>
+        </form>
+
+        <h2 class="text-center mb-4">Your Tasks</h2>
+        <ul class="list-group" id="items"></ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            loadTasks();
+
+            const form1 = document.querySelector('#addForm');
+            let submit = document.getElementById('submit');
+            let editItem = null;
+
+            form1.addEventListener('submit', addItem);
+            document.getElementById('items').addEventListener('click', removeOrEditItem);
+        });
+
+        function loadTasks() {
+            fetch('/tasks')
+                .then(response => response.json())
+                .then(tasks => {
+                    let items = document.getElementById('items');
+                    items.innerHTML = '';
+                    tasks.forEach(task => {
+                        addItemToUI(task[1], task[0]);
+                    });
+                });
+        }
+
+        function addItem(e) {
+            e.preventDefault();
+            let newItem = document.getElementById('item').value;
+
+            if (submit.value != 'Submit') {
+                let taskId = editItem.target.parentNode.dataset.id;
+                fetch(`/tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ task: newItem })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadTasks();
+                    submit.value = 'Submit';
+                    document.getElementById('item').value = '';
+                });
+            } else {
+                fetch('/tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ task: newItem })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadTasks();
+                    document.getElementById('item').value = '';
+                });
+            }
+        }
+
+        function addItemToUI(taskText, taskId) {
+            let li = document.createElement('li');
+            li.className = 'list-group-item';
+            li.dataset.id = taskId;
+
+            let deleteButton = document.createElement('button');
+            deleteButton.className = 'btn-danger btn btn-sm float-right delete';
+            deleteButton.appendChild(document.createTextNode('Delete'));
+
+            let editButton = document.createElement('button');
+            editButton.className = 'btn-success btn btn-sm float-right edit';
+            editButton.appendChild(document.createTextNode('Edit'));
+
+            li.appendChild(document.createTextNode(taskText));
+            li.appendChild(deleteButton);
+            li.appendChild(editButton);
+
+            document.getElementById('items').appendChild(li);
+        }
+
+        function removeOrEditItem(e) {
+            if (e.target.classList.contains('delete')) {
+                let taskId = e.target.parentNode.dataset.id;
+                fetch(`/tasks/${taskId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    loadTasks();
+                });
+            }
+
+            if (e.target.classList.contains('edit')) {
+                document.getElementById('item').value = e.target.parentNode.firstChild.textContent;
+                submit.value = 'EDIT';
+                editItem = e;
+            }
+        }
+    </script>
+</body>
+
+</html>
